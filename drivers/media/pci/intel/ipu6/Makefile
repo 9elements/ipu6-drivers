@@ -16,7 +16,8 @@ intel-ipu6-objs				+= ../ipu.o \
 					   ../ipu-trace.o \
 					   ../ipu-cpd.o \
 					   ipu6.o \
-					   ../ipu-fw-com.o
+					   ../ipu-fw-com.o \
+					   ../ipu-cio2-bridge.o
 
 obj-$(CONFIG_VIDEO_INTEL_IPU6)		+= intel-ipu6.o
 

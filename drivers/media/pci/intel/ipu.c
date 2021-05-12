@@ -12,11 +12,13 @@
 #include <linux/pm_runtime.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
+#include <linux/property.h>
 
 #include "ipu.h"
 #include "ipu-buttress.h"
 #include "ipu-platform.h"
 #include "ipu-platform-buttress-regs.h"
+#include "ipu-cio2-bridge.h"
 #include "ipu-cpd.h"
 #include "ipu-pdata.h"
 #include "ipu-bus.h"
@@ -24,6 +26,7 @@
 #include "ipu-platform-regs.h"
 #include "ipu-platform-isys-csi2-reg.h"
 #include "ipu-trace.h"
+
 
 #define IPU_PCI_BAR		0
 enum ipu_version ipu_ver;
@@ -353,8 +356,25 @@ int request_cpd_fw(const struct firmware **firmware_p, const char *name,
 }
 EXPORT_SYMBOL(request_cpd_fw);
 
+static int cio2_check_fwnode_graph(struct fwnode_handle *fwnode)
+{
+	struct fwnode_handle *endpoint;
+
+	if (IS_ERR_OR_NULL(fwnode))
+		return -EINVAL;
+
+	endpoint = fwnode_graph_get_next_endpoint(fwnode, NULL);
+	if (endpoint) {
+		fwnode_handle_put(endpoint);
+		return 0;
+	}
+
+	return cio2_check_fwnode_graph(fwnode->secondary);
+}
+
 static int ipu_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	struct fwnode_handle *fwnode = dev_fwnode(&pdev->dev);
 	struct ipu_device *isp;
 	phys_addr_t phys;
 	void __iomem *const *iomap;
@@ -367,6 +387,23 @@ static int ipu_pci_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	isp = devm_kzalloc(&pdev->dev, sizeof(*isp), GFP_KERNEL);
 	if (!isp)
 		return -ENOMEM;
+
+	/*
+	 * On some platforms no connections to sensors are defined in firmware,
+	 * if the device has no endpoints then we can try to build those as
+	 * software_nodes parsed from SSDB.
+	 */
+	rval = cio2_check_fwnode_graph(fwnode);
+	if (rval) {
+		if (fwnode && !IS_ERR_OR_NULL(fwnode->secondary)) {
+			dev_err(&pdev->dev, "fwnode graph has no endpoints connected\n");
+			return -EINVAL;
+		}
+
+		rval = cio2_bridge_init(pdev);
+		if (rval)
+			return rval;
+	}
 
 	dev_set_name(&pdev->dev, "intel-ipu");
 	isp->pdev = pdev;
