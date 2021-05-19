@@ -1,26 +1,13 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2020-2021 Intel Corporation.
 
+#include <linux/acpi.h>
 #include <linux/delay.h>
 #include <linux/module.h>
+#include <linux/gpio/consumer.h>
+#include <linux/gpio/driver.h>
 #include "power_ctrl_logic.h"
-
-/* mcu gpio resources*/
-static const struct acpi_gpio_params camreset_gpio  = { 0, 0, false };
-static const struct acpi_gpio_params campwdn_gpio   = { 1, 0, false };
-static const struct acpi_gpio_params midmclken_gpio = { 2, 0, false };
-static const struct acpi_gpio_params led_gpio       = { 3, 0, false };
-static const struct acpi_gpio_mapping dsc1_acpi_gpios[] = {
-	{ "camreset-gpios", &camreset_gpio, 1 },
-	{ "campwdn-gpios", &campwdn_gpio, 1 },
-	{ "midmclken-gpios", &midmclken_gpio, 1 },
-	{ "indled-gpios", &led_gpio, 1 },
-	{ }
-};
-
-static const char * const pin_names[] = {
-	"camreset", "campwdn", "midmclken", "indled"
-};
+#include "gpiolib.h"
 
 static struct power_ctrl_logic pcl = {
 	.reset_gpio = NULL,
@@ -31,60 +18,95 @@ static struct power_ctrl_logic pcl = {
 	.gpio_ready = false,
 };
 
-static int get_gpio_pin(struct gpio_desc **pin_d, struct pci_dev *pdev, int idx)
+/**
+ * gpiochip_get_desc - get the GPIO descriptor corresponding to the given
+ *                     hardware number for this chip
+ * @gc: GPIO chip
+ * @hwnum: hardware number of the GPIO for this chip
+ *
+ * Returns:
+ * A pointer to the GPIO descriptor or ``ERR_PTR(-EINVAL)`` if no GPIO exists
+ * in the given chip for the specified hardware number.
+ */
+struct gpio_desc *gpiochip_get_desc(struct gpio_chip *gc,
+                                    unsigned int hwnum)
 {
-	int count = PCL_PROBE_MAX_TRY;
+        struct gpio_device *gdev = gc->gpiodev;
 
-	do {
-		dev_dbg(&pdev->dev, "get %s:tried once\n", pin_names[idx]);
-		*pin_d = devm_gpiod_get(&pdev->dev, pin_names[idx],
-					GPIOD_OUT_LOW);
-		if (!IS_ERR(*pin_d))
-			return 0;
-		*pin_d = NULL;
-		msleep_interruptible(PCL_PROBE_TRY_GAP);
-	} while (--count > 0);
+        if (hwnum >= gdev->ngpio)
+                return ERR_PTR(-EINVAL);
 
-	return -EBUSY;
+        return &gdev->descs[hwnum];
 }
+
+static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
+{
+        if (!gc->parent)
+                return false;
+
+        return ACPI_HANDLE(gc->parent) == data;
+}
+
+/**
+ * acpi_get_gpiod() - Translate ACPI GPIO pin to GPIO descriptor usable with GPIO API
+ * @path:       ACPI GPIO controller full path name, (e.g. "\\_SB.GPO1")
+ * @pin:        ACPI GPIO pin number (0-based, controller-relative)
+ *
+ * Return: GPIO descriptor to use with Linux generic GPIO API, or ERR_PTR
+ * error value. Specifically returns %-EPROBE_DEFER if the referenced GPIO
+ * controller does not have GPIO chip registered at the moment. This is to
+ * support probe deferral.
+ */
+static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
+{
+        struct gpio_chip *chip;
+        acpi_handle handle;
+        acpi_status status;
+
+        status = acpi_get_handle(NULL, path, &handle);
+        if (ACPI_FAILURE(status))
+                return ERR_PTR(-ENODEV);
+
+        chip = gpiochip_find(handle, acpi_gpiochip_find);
+        if (!chip)
+                return ERR_PTR(-EPROBE_DEFER);
+
+        return gpiochip_get_desc(chip, pin);
+}
+
+char* path = "\\_SB.GPI0";
 
 static int power_ctrl_logic_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *id)
 {
-	int ret;
+	pcl.reset_gpio = acpi_get_gpiod(path, 22);
+	if (IS_ERR(pcl.reset_gpio))
+          printk("ERR|%s|%d| GPIO", __FUNCTION__, __LINE__);
 
-	if (!pdev) {
-		dev_err(&pdev->dev, "@%s: probed null pdev %x:%x\n",
-			__func__, PCL_PCI_BRG_VEN_ID, PCL_PCI_BRG_PDT_ID);
-		return -ENODEV;
-	}
-	dev_dbg(&pdev->dev, "@%s, enter\n", __func__);
+// XXX: Clock enable not mapped in ACPI (probably not working)
+	pcl.clocken_gpio = acpi_get_gpiod(path, 21);
+	if (IS_ERR(pcl.clocken_gpio))
+          printk("ERR|%s|%d| GPIO", __FUNCTION__, __LINE__);
 
-	ret = devm_acpi_dev_add_driver_gpios(&pdev->dev, dsc1_acpi_gpios);
-	if (ret) {
-		dev_err(&pdev->dev, "@%s: fail to add gpio\n", __func__);
-		return -EBUSY;
-	}
-	ret = get_gpio_pin(&pcl.reset_gpio, pdev, 0);
-	if (ret)
-		goto power_ctrl_logic_probe_end;
-	ret = get_gpio_pin(&pcl.powerdn_gpio, pdev, 1);
-	if (ret)
-		goto power_ctrl_logic_probe_end;
-	ret = get_gpio_pin(&pcl.clocken_gpio, pdev, 2);
-	if (ret)
-		goto power_ctrl_logic_probe_end;
-	ret = get_gpio_pin(&pcl.indled_gpio, pdev, 3);
-	if (ret)
-		goto power_ctrl_logic_probe_end;
+	pcl.powerdn_gpio = acpi_get_gpiod(path, 20);
+	if (IS_ERR(pcl.powerdn_gpio))
+          printk("ERR|%s|%d| GPIO", __FUNCTION__, __LINE__);
+
+	pcl.indled_gpio = acpi_get_gpiod(path, 19);
+	if (IS_ERR(pcl.indled_gpio))
+          printk("ERR|%s|%d| GPIO", __FUNCTION__, __LINE__);
 
 	mutex_lock(&pcl.status_lock);
 	pcl.gpio_ready = true;
 	mutex_unlock(&pcl.status_lock);
 
-power_ctrl_logic_probe_end:
-	dev_dbg(&pdev->dev, "@%s, exit\n", __func__);
-	return ret;
+	return 0;
+}
+
+// debug
+static inline void _gpiod_set_value_cansleep(struct gpio_desc *desc, int value) {
+	printk("DEBUG|%s|%d| SET GPIO [desc:0x%p] %s", __FUNCTION__, __LINE__, desc, value ? "ON":"OFF");
+	gpiod_set_value_cansleep(desc, value);
 }
 
 static void power_ctrl_logic_remove(struct pci_dev *pdev)
@@ -92,13 +114,14 @@ static void power_ctrl_logic_remove(struct pci_dev *pdev)
 	dev_dbg(&pdev->dev, "@%s, enter\n", __func__);
 	mutex_lock(&pcl.status_lock);
 	pcl.gpio_ready = false;
-	gpiod_set_value_cansleep(pcl.reset_gpio, 0);
+	_gpiod_set_value_cansleep(pcl.reset_gpio, 0);
 	gpiod_put(pcl.reset_gpio);
-	gpiod_set_value_cansleep(pcl.powerdn_gpio, 0);
+	// powerdn gpio disables i2c-3 bus
+	//_gpiod_set_value_cansleep(pcl.powerdn_gpio, 0);
 	gpiod_put(pcl.powerdn_gpio);
-	gpiod_set_value_cansleep(pcl.clocken_gpio, 0);
+	_gpiod_set_value_cansleep(pcl.clocken_gpio, 0);
 	gpiod_put(pcl.clocken_gpio);
-	gpiod_set_value_cansleep(pcl.indled_gpio, 0);
+	_gpiod_set_value_cansleep(pcl.indled_gpio, 0);
 	gpiod_put(pcl.indled_gpio);
 	mutex_unlock(&pcl.status_lock);
 	dev_dbg(&pdev->dev, "@%s, exit\n", __func__);
@@ -140,12 +163,24 @@ int power_ctrl_logic_set_power(int on)
 		return -EBUSY;
 	}
 	if (pcl.power_on != on) {
-		gpiod_set_value_cansleep(pcl.reset_gpio, on);
-		gpiod_set_value_cansleep(pcl.powerdn_gpio, on);
-		gpiod_set_value_cansleep(pcl.clocken_gpio, on);
-		gpiod_set_value_cansleep(pcl.indled_gpio, on);
+		if (on) {
+			_gpiod_set_value_cansleep(pcl.clocken_gpio, 1);
+			_gpiod_set_value_cansleep(pcl.reset_gpio, 1);
+			usleep_range(1000, 2000);
+			_gpiod_set_value_cansleep(pcl.powerdn_gpio, 1);
+			_gpiod_set_value_cansleep(pcl.reset_gpio, 0);
+			_gpiod_set_value_cansleep(pcl.indled_gpio, 1);
+			usleep_range(1500, 1800);
+		} else {
+			_gpiod_set_value_cansleep(pcl.indled_gpio, 0);
+			_gpiod_set_value_cansleep(pcl.reset_gpio, 1);
+			// powerdn gpio disables i2c-3 bus
+			//_gpiod_set_value_cansleep(pcl.powerdn_gpio, 0);
+			_gpiod_set_value_cansleep(pcl.clocken_gpio, 0);
+		}
 		pcl.power_on = on;
 	}
+
 	mutex_unlock(&pcl.status_lock);
 	return 0;
 }
