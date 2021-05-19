@@ -13,6 +13,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
+#include "power_ctrl_logic.h"
 
 #define OV8856_REG_VALUE_08BIT		1
 #define OV8856_REG_VALUE_16BIT		2
@@ -1364,57 +1365,6 @@ static int ov8856_set_stream(struct v4l2_subdev *sd, int enable)
 	return ret;
 }
 
-static int __ov8856_power_on(struct ov8856 *ov8856)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
-	int ret;
-
-	if (is_acpi_node(dev_fwnode(&client->dev)))
-		return 0;
-
-	ret = clk_prepare_enable(ov8856->xvclk);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to enable xvclk\n");
-		return ret;
-	}
-
-	if (ov8856->reset_gpio) {
-		gpiod_set_value_cansleep(ov8856->reset_gpio, 1);
-		usleep_range(1000, 2000);
-	}
-
-	ret = regulator_bulk_enable(ARRAY_SIZE(ov8856_supply_names),
-				    ov8856->supplies);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to enable regulators\n");
-		goto disable_clk;
-	}
-
-	gpiod_set_value_cansleep(ov8856->reset_gpio, 0);
-	usleep_range(1500, 1800);
-
-	return 0;
-
-disable_clk:
-	gpiod_set_value_cansleep(ov8856->reset_gpio, 1);
-	clk_disable_unprepare(ov8856->xvclk);
-
-	return ret;
-}
-
-static void __ov8856_power_off(struct ov8856 *ov8856)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
-
-	if (is_acpi_node(dev_fwnode(&client->dev)))
-		return;
-
-	gpiod_set_value_cansleep(ov8856->reset_gpio, 1);
-	regulator_bulk_disable(ARRAY_SIZE(ov8856_supply_names),
-			       ov8856->supplies);
-	clk_disable_unprepare(ov8856->xvclk);
-}
-
 static int __maybe_unused ov8856_suspend(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
@@ -1424,7 +1374,7 @@ static int __maybe_unused ov8856_suspend(struct device *dev)
 	if (ov8856->streaming)
 		ov8856_stop_streaming(ov8856);
 
-	__ov8856_power_off(ov8856);
+	power_ctrl_logic_set_power(0);
 	mutex_unlock(&ov8856->mutex);
 
 	return 0;
@@ -1438,7 +1388,7 @@ static int __maybe_unused ov8856_resume(struct device *dev)
 
 	mutex_lock(&ov8856->mutex);
 
-	__ov8856_power_on(ov8856);
+	power_ctrl_logic_set_power(1);
 	if (ov8856->streaming) {
 		ret = ov8856_start_streaming(ov8856);
 		if (ret) {
@@ -1745,7 +1695,7 @@ static int ov8856_remove(struct i2c_client *client)
 	pm_runtime_disable(&client->dev);
 	mutex_destroy(&ov8856->mutex);
 
-	__ov8856_power_off(ov8856);
+	power_ctrl_logic_set_power(0);
 
 	return 0;
 }
@@ -1769,11 +1719,8 @@ static int ov8856_probe(struct i2c_client *client)
 
 	v4l2_i2c_subdev_init(&ov8856->sd, client, &ov8856_subdev_ops);
 
-	ret = __ov8856_power_on(ov8856);
-	if (ret) {
-		dev_err(&client->dev, "failed to power on\n");
-		return ret;
-	}
+	power_ctrl_logic_set_power(0);
+	power_ctrl_logic_set_power(1);
 
 	ret = ov8856_identify_module(ov8856);
 	if (ret) {
@@ -1825,7 +1772,7 @@ probe_error_v4l2_ctrl_handler_free:
 	mutex_destroy(&ov8856->mutex);
 
 probe_power_off:
-	__ov8856_power_off(ov8856);
+	power_ctrl_logic_set_power(0);
 
 	return ret;
 }

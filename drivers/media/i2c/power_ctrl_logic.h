@@ -10,7 +10,7 @@
 
 /* pci id for probe power control logic*/
 #define PCL_PCI_BRG_VEN_ID 0x8086
-#define PCL_PCI_BRG_PDT_ID 0x9a14
+#define PCL_PCI_BRG_PDT_ID 0x9a12
 
 #define PCL_DRV_NAME "power_ctrl_logic"
 #define PCL_PROBE_MAX_TRY 5
