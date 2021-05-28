@@ -18,6 +18,13 @@ static struct power_ctrl_logic pcl = {
 	.gpio_ready = false,
 };
 
+#define PATH_GPI0 "\\_SB.GPI0"
+#define PATH_DSC0 "\\_SB.PC00.DSC0"
+
+static const guid_t int3472_clk_guid =
+	GUID_INIT(0x82c0d13a, 0x78c5, 0x4244,
+		  0x9b, 0xb1, 0xeb, 0x8b, 0x53, 0x9a, 0x8d, 0x11);
+
 /**
  * gpiochip_get_desc - get the GPIO descriptor corresponding to the given
  *                     hardware number for this chip
@@ -48,7 +55,7 @@ static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
 }
 
 /**
- * acpi_get_gpiod() - Translate ACPI GPIO pin to GPIO descriptor usable with GPIO API
+ * _acpi_get_gpiod() - Translate ACPI GPIO pin to GPIO descriptor usable with GPIO API
  * @path:       ACPI GPIO controller full path name, (e.g. "\\_SB.GPO1")
  * @pin:        ACPI GPIO pin number (0-based, controller-relative)
  *
@@ -57,7 +64,7 @@ static int acpi_gpiochip_find(struct gpio_chip *gc, void *data)
  * controller does not have GPIO chip registered at the moment. This is to
  * support probe deferral.
  */
-static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
+static struct gpio_desc *_acpi_get_gpiod(char *path, int pin)
 {
         struct gpio_chip *chip;
         acpi_handle handle;
@@ -74,25 +81,28 @@ static struct gpio_desc *acpi_get_gpiod(char *path, int pin)
         return gpiochip_get_desc(chip, pin);
 }
 
-char* path = "\\_SB.GPI0";
 
 static int power_ctrl_logic_probe(struct pci_dev *pdev,
 				  const struct pci_device_id *id)
 {
-	pcl.reset_gpio = acpi_get_gpiod(path, 22);
+	acpi_status status;
+
+	status = acpi_get_handle(NULL, PATH_DSC0, &pcl.clk_handle);
+	if (ACPI_FAILURE(status))
+		return -EINVAL;
+
+	if (!acpi_check_dsm(pcl.clk_handle, &int3472_clk_guid, 0x00, 0x1))
+		return -33;
+
+	pcl.reset_gpio = _acpi_get_gpiod(PATH_GPI0, 22);
 	if (IS_ERR(pcl.reset_gpio))
           printk("ERR|%s|%d| GPIO", __FUNCTION__, __LINE__);
 
-// XXX: Clock enable not mapped in ACPI (probably not working)
-	pcl.clocken_gpio = acpi_get_gpiod(path, 21);
-	if (IS_ERR(pcl.clocken_gpio))
-          printk("ERR|%s|%d| GPIO", __FUNCTION__, __LINE__);
-
-	pcl.powerdn_gpio = acpi_get_gpiod(path, 20);
+	pcl.powerdn_gpio = _acpi_get_gpiod(PATH_GPI0, 20);
 	if (IS_ERR(pcl.powerdn_gpio))
           printk("ERR|%s|%d| GPIO", __FUNCTION__, __LINE__);
 
-	pcl.indled_gpio = acpi_get_gpiod(path, 19);
+	pcl.indled_gpio = _acpi_get_gpiod(PATH_GPI0, 19);
 	if (IS_ERR(pcl.indled_gpio))
           printk("ERR|%s|%d| GPIO", __FUNCTION__, __LINE__);
 
@@ -101,6 +111,24 @@ static int power_ctrl_logic_probe(struct pci_dev *pdev,
 	mutex_unlock(&pcl.status_lock);
 
 	return 0;
+}
+
+static inline void _enable_clk(void) {
+	union acpi_object *obj;
+	union acpi_object obj_args[3], argv4;
+
+	obj_args[0].integer.type = ACPI_TYPE_INTEGER;
+	obj_args[0].integer.value = 0;
+	obj_args[1].integer.type = ACPI_TYPE_INTEGER;
+	obj_args[1].integer.value = 1;
+	obj_args[2].integer.type = ACPI_TYPE_INTEGER;
+	obj_args[2].integer.value = 1;
+
+	argv4.type = ACPI_TYPE_PACKAGE;
+	argv4.package.count = 3;
+	argv4.package.elements = obj_args;
+
+	obj = acpi_evaluate_dsm(pcl.clk_handle, &int3472_clk_guid, 0, 0x1, &argv4);
 }
 
 // debug
@@ -119,8 +147,6 @@ static void power_ctrl_logic_remove(struct pci_dev *pdev)
 	// powerdn gpio disables i2c-3 bus
 	//_gpiod_set_value_cansleep(pcl.powerdn_gpio, 0);
 	gpiod_put(pcl.powerdn_gpio);
-	_gpiod_set_value_cansleep(pcl.clocken_gpio, 0);
-	gpiod_put(pcl.clocken_gpio);
 	_gpiod_set_value_cansleep(pcl.indled_gpio, 0);
 	gpiod_put(pcl.indled_gpio);
 	mutex_unlock(&pcl.status_lock);
@@ -164,21 +190,20 @@ int power_ctrl_logic_set_power(int on)
 	}
 	if (pcl.power_on != on) {
 		if (on) {
-			_gpiod_set_value_cansleep(pcl.clocken_gpio, 1);
 			_gpiod_set_value_cansleep(pcl.reset_gpio, 1);
-			usleep_range(1000, 2000);
+			_enable_clk();
 			_gpiod_set_value_cansleep(pcl.powerdn_gpio, 1);
-			_gpiod_set_value_cansleep(pcl.reset_gpio, 0);
 			_gpiod_set_value_cansleep(pcl.indled_gpio, 1);
+			usleep_range(1000, 2000);
+			_gpiod_set_value_cansleep(pcl.reset_gpio, 1);
 			usleep_range(1500, 1800);
 		} else {
 			_gpiod_set_value_cansleep(pcl.indled_gpio, 0);
-			_gpiod_set_value_cansleep(pcl.reset_gpio, 1);
+			_gpiod_set_value_cansleep(pcl.reset_gpio, 0);
 			// powerdn gpio disables i2c-3 bus
 			//_gpiod_set_value_cansleep(pcl.powerdn_gpio, 0);
-			_gpiod_set_value_cansleep(pcl.clocken_gpio, 0);
 		}
-		pcl.power_on = on;
+	pcl.power_on = on;
 	}
 
 	mutex_unlock(&pcl.status_lock);
