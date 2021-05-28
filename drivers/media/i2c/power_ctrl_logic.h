@@ -4,6 +4,7 @@
 #ifndef _POWER_CTRL_LOGIC_H_
 #define _POWER_CTRL_LOGIC_H_
 
+#include <linux/acpi.h>
 #include <linux/gpio/consumer.h>
 #include <linux/mutex.h>
 #include <linux/pci.h>
@@ -22,6 +23,8 @@ struct power_ctrl_logic {
 	struct gpio_desc *powerdn_gpio;
 	struct gpio_desc *clocken_gpio;
 	struct gpio_desc *indled_gpio;
+	/* clk resource*/
+	acpi_handle clk_handle;
 	/* status */
 	struct mutex status_lock;
 	bool power_on;
