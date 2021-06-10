@@ -2,10 +2,10 @@
 
 This repository supports MIPI cameras through the IPU6 on Intel Tigerlake platforms. There are 4 repositories that provide the complete setup:
 
-* https://github.com/intel/ipu6-drivers - kernel drivers for the IPU and sensors
-* https://github.com/intel/ipu6-camera-hal - HAL for processing of images in userspace
-* https://github.com/intel/ipu6-camera-bins - IPU firmware and proprietary image processing libraries
-* https://github.com/intel/icamerasrc (branch:icamerasrc_slim_api) - Gstreamer src plugin
+* https://github.com/9elements/ipu6-drivers - kernel drivers for the IPU and sensors
+* https://github.com/9elements/ipu6-camera-hal - HAL for processing of images in userspace
+* https://github.com/9elements/ipu6-camera-bins - IPU firmware and proprietary image processing libraries
+* https://github.com/9elements/icamerasrc - Gstreamer src plugin
 
 
 ## Content of this repository:
