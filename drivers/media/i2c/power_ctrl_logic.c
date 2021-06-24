@@ -144,8 +144,7 @@ static void power_ctrl_logic_remove(struct pci_dev *pdev)
 	pcl.gpio_ready = false;
 	_gpiod_set_value_cansleep(pcl.reset_gpio, 0);
 	gpiod_put(pcl.reset_gpio);
-	// powerdn gpio disables i2c-3 bus
-	//_gpiod_set_value_cansleep(pcl.powerdn_gpio, 0);
+	_gpiod_set_value_cansleep(pcl.powerdn_gpio, 0);
 	gpiod_put(pcl.powerdn_gpio);
 	_gpiod_set_value_cansleep(pcl.indled_gpio, 0);
 	gpiod_put(pcl.indled_gpio);
@@ -200,8 +199,7 @@ int power_ctrl_logic_set_power(int on)
 		} else {
 			_gpiod_set_value_cansleep(pcl.indled_gpio, 0);
 			_gpiod_set_value_cansleep(pcl.reset_gpio, 0);
-			// powerdn gpio disables i2c-3 bus
-			//_gpiod_set_value_cansleep(pcl.powerdn_gpio, 0);
+			_gpiod_set_value_cansleep(pcl.powerdn_gpio, 0);
 		}
 	pcl.power_on = on;
 	}
