@@ -89,7 +89,6 @@ static const char * const ov8856_supply_names[] = {
 
 enum {
 	OV8856_LINK_FREQ_720MBPS,
-	OV8856_LINK_FREQ_360MBPS,
 };
 
 struct ov8856_reg {
@@ -136,22 +135,9 @@ static const struct ov8856_reg mipi_data_rate_720mbps[] = {
 	// soft standby 2.8.2
 	{0x0100, 0x00},
 	//// system clock control 2.9
+	{0x0300, 0x02},
 	{0x0302, 0x4b},
-	// pll1_multiplier[7:0]
-	{0x0303, 0x01},
-	// pll2_pre_div
-	{0x030b, 0x02},
-	// pll2_r_divp[7:0]
-	{0x030d, 0x4b},
-	// ???
-	{0x031e, 0x0c},
-};
-
-static const struct ov8856_reg mipi_data_rate_360mbps[] = {
-	{0x0103, 0x01},
-	{0x0100, 0x00},
-	{0x0302, 0x4b},
-	{0x0303, 0x03},
+	{0x0303, 0x00},
 	{0x030b, 0x02},
 	{0x030d, 0x4b},
 	{0x031e, 0x0c},
@@ -160,11 +146,9 @@ static const struct ov8856_reg mipi_data_rate_360mbps[] = {
 static const struct ov8856_reg mode_3264x2448_regs[] = {
 	//// system control 6.2
 	// PAD OEN0
-	{0x3000, 0x20},
-	// GPIO IN
-	{0x3003, 0x08},
+	{0x3000, 0x00},
 	// PAD OUT2
-	{0x300e, 0x20},
+	{0x300e, 0x00},
 	// PAD SEL2
 	{0x3010, 0x00},
 	// PUMP CLK DIV
@@ -180,20 +164,14 @@ static const struct ov8856_reg mode_3264x2448_regs[] = {
 	{0x3500, 0x00},
 	{0x3501, 0x9a},
 	{0x3502, 0x20},
-	// AEC MANUAL
 	{0x3503, 0x08},
-	// GCVT OPTION
 	{0x3505, 0x83},
-	// LONG GAIN
-	{0x3508, 0x01},
+	{0x3508, 0x00},
 	{0x3509, 0x80},
-	// SHORT GAIN
 	{0x350c, 0x00},
 	{0x350d, 0x80},
-	// SHORT DIGIGAIN
 	{0x350e, 0x04},
 	{0x350f, 0x00},
-	// SHORT EXPO
 	{0x3510, 0x00},
 	{0x3511, 0x02},
 	{0x3512, 0x00},
@@ -205,7 +183,7 @@ static const struct ov8856_reg mode_3264x2448_regs[] = {
 	{0x3611, 0x58},
 	{0x3612, 0x5c},
 	{0x3613, 0xca},
-	{0x3614, 0x20},
+	{0x3614, 0x50},
 	{0x3628, 0xff},
 	{0x3629, 0xff},
 	{0x362a, 0xff},
@@ -254,7 +232,7 @@ static const struct ov8856_reg mode_3264x2448_regs[] = {
 	{0x3805, 0xdf},
 	// V_CROP_END
 	{0x3806, 0x09},
-	{0x3807, 0xa9},
+	{0x3807, 0xab},
 	// H_OUTPUT_SIZE
 	{0x3808, 0x0c},
 	{0x3809, 0xd0},
@@ -263,13 +241,13 @@ static const struct ov8856_reg mode_3264x2448_regs[] = {
 	{0x380b, 0xa4},
 	// TIMING_HTS
 	{0x380c, 0x07},
-	{0x380d, 0x88},
+	{0x380d, 0x8c},
 	// TIMING_VTS
 	{0x380e, 0x09},
-	{0x380f, 0xb8},
+	{0x380f, 0xd0},
 	// H_WIN_OFF
 	{0x3810, 0x00},
-	{0x3811, 0x00},
+	{0x3811, 0x08},
 	//V_WIN_OFF
 	{0x3812, 0x00},
 	{0x3813, 0x01},
@@ -282,7 +260,7 @@ static const struct ov8856_reg mode_3264x2448_regs[] = {
 	{0x3817, 0x00},
 	// MIPI SC CTRL
 	{0x3818, 0x00},
-	{0x3819, 0x10},
+	{0x3819, 0x00},
 	// FORMAT1
 	{0x3820, 0x80},
 	// FORMAT2
@@ -295,6 +273,7 @@ static const struct ov8856_reg mode_3264x2448_regs[] = {
 	{0x3830, 0x06},
 	// ZLINE NUM OPTION
 	{0x3836, 0x02},
+	{0x3837, 0x10},
 	// PD2
 	{0x3862, 0x04},
 	// PD3
@@ -304,7 +283,7 @@ static const struct ov8856_reg mode_3264x2448_regs[] = {
 	{0x3cc0, 0x33},
 	//// OTP memory 4.5
 	// OTP_REG85
-	{0x3d85, 0x17},
+	{0x3d85, 0x14},
 	// OTP_SETTING_STT_ADDRESS
 	{0x3d8c, 0x73},
 	{0x3d8d, 0xde},
@@ -368,7 +347,7 @@ static const struct ov8856_reg mode_3264x2448_regs[] = {
 	// ISP CTRXX <- (reg & 0xFF)
 	{0x5000, 0x57},
 	{0x5001, 0x0a},
-	{0x5004, 0x04},
+	{0x5004, 0x06},
 	{0x502e, 0x03},
 	{0x5030, 0x41},
 	//// DPC long exposure control 6.21
@@ -427,11 +406,9 @@ static const struct ov8856_reg mode_3264x2448_regs[] = {
 static const struct ov8856_reg mode_3264x1836_regs[] = {
 	//// system control 6.2
 	// PAD OEN0
-	{0x3000, 0x20},
-	// GPIO IN
-	{0x3003, 0x08},
+	{0x3000, 0x00},
 	// PAD OUT2
-	{0x300e, 0x20},
+	{0x300e, 0x00},
 	// PAD SEL2
 	{0x3010, 0x00},
 	// PUMP CLK DIV
@@ -447,20 +424,14 @@ static const struct ov8856_reg mode_3264x1836_regs[] = {
 	{0x3500, 0x00},
 	{0x3501, 0x9a},
 	{0x3502, 0x20},
-	// AEC MANUAL
 	{0x3503, 0x08},
-	// GCVT OPTION
 	{0x3505, 0x83},
-	// LONG GAIN
-	{0x3508, 0x01},
+	{0x3508, 0x00},
 	{0x3509, 0x80},
-	// SHORT GAIN
 	{0x350c, 0x00},
 	{0x350d, 0x80},
-	// SHORT DIGIGAIN
 	{0x350e, 0x04},
 	{0x350f, 0x00},
-	// SHORT EXPO
 	{0x3510, 0x00},
 	{0x3511, 0x02},
 	{0x3512, 0x00},
@@ -472,7 +443,7 @@ static const struct ov8856_reg mode_3264x1836_regs[] = {
 	{0x3611, 0x58},
 	{0x3612, 0x5c},
 	{0x3613, 0xca},
-	{0x3614, 0x20},
+	{0x3614, 0x50},
 	{0x3628, 0xff},
 	{0x3629, 0xff},
 	{0x362a, 0xff},
@@ -521,25 +492,25 @@ static const struct ov8856_reg mode_3264x1836_regs[] = {
 	{0x3805, 0xdf},
 	// V_CROP_END
 	{0x3806, 0x09},
-	{0x3807, 0xa9},
+	{0x3807, 0xa7},
 	// H_OUTPUT_SIZE
 	{0x3808, 0x0c},
 	{0x3809, 0xd0},
 	// V_OUTPUT_SIZE
-	{0x380a, 0x09},
-	{0x380b, 0xa4},
+	{0x380a, 0x07},
+	{0x380b, 0xb0},
 	// TIMING_HTS
 	{0x380c, 0x07},
-	{0x380d, 0x88},
+	{0x380d, 0x8c},
 	// TIMING_VTS
 	{0x380e, 0x09},
-	{0x380f, 0xb8},
+	{0x380f, 0xc2},
 	// H_WIN_OFF
 	{0x3810, 0x00},
-	{0x3811, 0x00},
+	{0x3811, 0x08},
 	//V_WIN_OFF
 	{0x3812, 0x00},
-	{0x3813, 0x01},
+	{0x3813, 0xf9},
 	// H_INC_ODD
 	{0x3814, 0x01},
 	// H_INC_EVEN
@@ -549,7 +520,7 @@ static const struct ov8856_reg mode_3264x1836_regs[] = {
 	{0x3817, 0x00},
 	// MIPI SC CTRL
 	{0x3818, 0x00},
-	{0x3819, 0x10},
+	{0x3819, 0x00},
 	// FORMAT1
 	{0x3820, 0x80},
 	// FORMAT2
@@ -562,6 +533,7 @@ static const struct ov8856_reg mode_3264x1836_regs[] = {
 	{0x3830, 0x06},
 	// ZLINE NUM OPTION
 	{0x3836, 0x02},
+	{0x3837, 0x10},
 	// PD2
 	{0x3862, 0x04},
 	// PD3
@@ -571,7 +543,7 @@ static const struct ov8856_reg mode_3264x1836_regs[] = {
 	{0x3cc0, 0x33},
 	//// OTP memory 4.5
 	// OTP_REG85
-	{0x3d85, 0x17},
+	{0x3d85, 0x14},
 	// OTP_SETTING_STT_ADDRESS
 	{0x3d8c, 0x73},
 	{0x3d8d, 0xde},
@@ -635,7 +607,7 @@ static const struct ov8856_reg mode_3264x1836_regs[] = {
 	// ISP CTRXX <- (reg & 0xFF)
 	{0x5000, 0x57},
 	{0x5001, 0x0a},
-	{0x5004, 0x04},
+	{0x5004, 0x06},
 	{0x502e, 0x03},
 	{0x5030, 0x41},
 	//// DPC long exposure control 6.21
@@ -711,12 +683,6 @@ static const struct ov8856_link_freq_config link_freq_configs[] = {
 			.num_of_regs = ARRAY_SIZE(mipi_data_rate_720mbps),
 			.regs = mipi_data_rate_720mbps,
 		}
-	},
-	[OV8856_LINK_FREQ_360MBPS] = {
-		.reg_list = {
-			.num_of_regs = ARRAY_SIZE(mipi_data_rate_360mbps),
-			.regs = mipi_data_rate_360mbps,
-		}
 	}
 };
 
@@ -724,9 +690,9 @@ static const struct ov8856_mode supported_modes[] = {
 	{
 		.width = 3280,
 		.height = 2468,
-		.hts = 1928,
-		.vts_def = 2488,
-		.vts_min = 2488,
+		.hts = 1932,
+		.vts_def = 2512,
+		.vts_min = 2512,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_3264x2448_regs),
 			.regs = mode_3264x2448_regs,
@@ -736,9 +702,9 @@ static const struct ov8856_mode supported_modes[] = {
 	{
 		.width = 3280,
 		.height = 1968,
-		.hts = 1928,
-		.vts_def = 2488,
-		.vts_min = 2488,
+		.hts = 1932,
+		.vts_def = 2498,
+		.vts_min = 2498,
 		.reg_list = {
 			.num_of_regs = ARRAY_SIZE(mode_3264x1836_regs),
 			.regs = mode_3264x1836_regs,
@@ -878,9 +844,9 @@ static int ov8856_update_digital_gain(struct ov8856 *ov8856, u32 d_gain)
 
 static int ov8856_test_pattern(struct ov8856 *ov8856, u32 pattern)
 {
-	if (pattern)
-		pattern = (pattern - 1) << OV8856_TEST_PATTERN_BAR_SHIFT |
-			  OV8856_TEST_PATTERN_ENABLE;
+	//if (pattern)
+	//	pattern = (pattern - 1) << OV8856_TEST_PATTERN_BAR_SHIFT |
+	//		  OV8856_TEST_PATTERN_ENABLE;
 
 	return ov8856_write_reg(ov8856, OV8856_REG_TEST_PATTERN,
 				OV8856_REG_VALUE_08BIT, pattern);
@@ -1043,6 +1009,14 @@ static int ov8856_start_streaming(struct ov8856 *ov8856)
 	ret = __v4l2_ctrl_handler_setup(ov8856->sd.ctrl_handler);
 	if (ret)
 		return ret;
+
+	//u32 pattern = 0xf0;
+	//printk("HACK: ENABLE TEST PATTERN 0x%x", pattern);
+	//ret = ov8856_test_pattern(ov8856, pattern);
+	//if (ret) {
+	//	printk("HACK: ENABLE TEST PATTERN FAILED!!!");
+	//	return ret;
+	//}
 
 	ret = ov8856_write_reg(ov8856, OV8856_REG_MODE_SELECT,
 			       OV8856_REG_VALUE_08BIT, OV8856_MODE_STREAMING);
