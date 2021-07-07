@@ -34,17 +34,15 @@ static int queue_setup(struct vb2_queue *q,
 	/* num_planes == 0: we're being called through VIDIOC_REQBUFS */
 	if (!*num_planes) {
 		use_fmt = true;
-		*num_planes = av->mpix.num_planes;
+		*num_planes = 1;
 	}
 
-	for (i = 0; i < *num_planes; i++) {
-		if (use_fmt)
-			sizes[i] = av->mpix.plane_fmt[i].sizeimage;
-		alloc_devs[i] = aq->dev;
-		dev_dbg(&av->isys->adev->dev,
-			"%s: queue setup: plane %d size %u\n",
-			av->vdev.name, i, sizes[i]);
-	}
+	if (use_fmt)
+		sizes[0] = av->pix.sizeimage;
+	alloc_devs[0] = aq->dev;
+	dev_dbg(&av->isys->adev->dev,
+		"%s: queue setup: plane %d size %u\n",
+		av->vdev.name, i, sizes[0]);
 
 	return 0;
 }
@@ -89,13 +87,13 @@ int ipu_isys_buf_prepare(struct vb2_buffer *vb)
 	dev_dbg(&av->isys->adev->dev,
 		"buffer: %s: configured size %u, buffer size %lu\n",
 		av->vdev.name,
-		av->mpix.plane_fmt[0].sizeimage, vb2_plane_size(vb, 0));
+		av->pix.sizeimage, vb2_plane_size(vb, 0));
 
-	if (av->mpix.plane_fmt[0].sizeimage > vb2_plane_size(vb, 0))
+	if (av->pix.sizeimage > vb2_plane_size(vb, 0))
 		return -EINVAL;
 
-	vb2_set_plane_payload(vb, 0, av->mpix.plane_fmt[0].bytesperline *
-			      av->mpix.height);
+	vb2_set_plane_payload(vb, 0, av->pix.bytesperline *
+			      av->pix.height);
 	vb->planes[0].data_offset = av->line_header_length / BITS_PER_BYTE;
 
 	return 0;
@@ -614,19 +612,19 @@ int ipu_isys_link_fmt_validate(struct ipu_isys_queue *aq)
 	if (rval)
 		return rval;
 
-	if (fmt.format.width != av->mpix.width ||
-	    fmt.format.height != av->mpix.height) {
+	if (fmt.format.width != av->pix.width ||
+	    fmt.format.height != av->pix.height) {
 		dev_dbg(&av->isys->adev->dev,
 			"wrong width or height %ux%u (%ux%u expected)\n",
-			av->mpix.width, av->mpix.height,
+			av->pix.width, av->pix.height,
 			fmt.format.width, fmt.format.height);
 		return -EINVAL;
 	}
 
-	if (fmt.format.field != av->mpix.field) {
+	if (fmt.format.field != av->pix.field) {
 		dev_dbg(&av->isys->adev->dev,
 			"wrong field value 0x%8.8x (0x%8.8x expected)\n",
-			av->mpix.field, fmt.format.field);
+			av->pix.field, fmt.format.field);
 		return -EINVAL;
 	}
 
@@ -717,7 +715,7 @@ static int start_streaming(struct vb2_queue *q, unsigned int count)
 
 	dev_dbg(&av->isys->adev->dev,
 		"stream: %s: width %u, height %u, css pixelformat %u\n",
-		av->vdev.name, av->mpix.width, av->mpix.height,
+		av->vdev.name, av->pix.width, av->pix.height,
 		av->pfmt->css_pixelformat);
 
 	mutex_lock(&av->isys->stream_mutex);

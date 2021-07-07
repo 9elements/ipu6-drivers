@@ -392,7 +392,7 @@ static void csi2_set_ffmt(struct v4l2_subdev *sd,
 
 static const struct ipu_isys_pixelformat *
 csi2_try_fmt(struct ipu_isys_video *av,
-	     struct v4l2_pix_format_mplane *mpix)
+	     struct v4l2_pix_format *pix)
 {
 	struct media_link *link = list_first_entry(&av->vdev.entity.links,
 						   struct media_link, list);
@@ -405,7 +405,7 @@ csi2_try_fmt(struct ipu_isys_video *av,
 
 	csi2 = to_ipu_isys_csi2(sd);
 
-	return ipu_isys_video_try_fmt_vid_mplane(av, mpix,
+	return ipu_isys_video_try_fmt_vid(av, pix,
 				v4l2_ctrl_g_ctrl(csi2->store_csi2_header));
 }
 

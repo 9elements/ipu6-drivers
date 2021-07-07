@@ -110,7 +110,7 @@ struct ipu_isys_video {
 	struct mutex mutex;
 	struct media_pad pad;
 	struct video_device vdev;
-	struct v4l2_pix_format_mplane mpix;
+	struct v4l2_pix_format pix;
 	const struct ipu_isys_pixelformat *pfmts;
 	const struct ipu_isys_pixelformat *pfmt;
 	struct ipu_isys_queue aq;
@@ -128,8 +128,8 @@ struct ipu_isys_video {
 	struct video_stream_watermark *watermark;
 
 	const struct ipu_isys_pixelformat *
-		(*try_fmt_vid_mplane)(struct ipu_isys_video *av,
-				      struct v4l2_pix_format_mplane *mpix);
+		(*try_fmt_vid)(struct ipu_isys_video *av,
+				      struct v4l2_pix_format *pix);
 	void (*prepare_fw_stream)(struct ipu_isys_video *av,
 				  struct ipu_fw_isys_stream_cfg_data_abi *cfg);
 };
@@ -151,12 +151,12 @@ int ipu_isys_vidioc_enum_fmt(struct file *file, void *fh,
 			     struct v4l2_fmtdesc *f);
 
 const struct ipu_isys_pixelformat *
-ipu_isys_video_try_fmt_vid_mplane_default(struct ipu_isys_video *av,
-					  struct v4l2_pix_format_mplane *mpix);
+ipu_isys_video_try_fmt_vid_default(struct ipu_isys_video *av,
+					  struct v4l2_pix_format *pix);
 
 const struct ipu_isys_pixelformat *
-ipu_isys_video_try_fmt_vid_mplane(struct ipu_isys_video *av,
-				  struct v4l2_pix_format_mplane *mpix,
+ipu_isys_video_try_fmt_vid(struct ipu_isys_video *av,
+				  struct v4l2_pix_format *pix,
 				  int store_csi2_header);
 
 void

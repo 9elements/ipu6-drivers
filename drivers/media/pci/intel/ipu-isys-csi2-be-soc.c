@@ -243,8 +243,8 @@ int ipu_isys_csi2_be_soc_init(struct ipu_isys_csi2_be_soc *csi2_be_soc,
 	csi2_be_soc->av.aq.css_pin_type = IPU_FW_ISYS_PIN_TYPE_RAW_SOC;
 	csi2_be_soc->av.isys = isys;
 	csi2_be_soc->av.pfmts = ipu_isys_pfmts_be_soc;
-	csi2_be_soc->av.try_fmt_vid_mplane =
-		ipu_isys_video_try_fmt_vid_mplane_default;
+	csi2_be_soc->av.try_fmt_vid =
+		ipu_isys_video_try_fmt_vid_default;
 	csi2_be_soc->av.prepare_fw_stream =
 		ipu_isys_prepare_fw_cfg_default;
 	csi2_be_soc->av.aq.buf_prepare = ipu_isys_buf_prepare;
