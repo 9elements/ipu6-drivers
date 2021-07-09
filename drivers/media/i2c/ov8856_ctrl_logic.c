@@ -169,6 +169,13 @@ void ov8856_reset(int on)
 
 EXPORT_SYMBOL_GPL(ov8856_reset);
 
+void ov8856_led(int on)
+{
+	gpiod_set_value_cansleep(pcl.indled_gpio, on);
+}
+
+EXPORT_SYMBOL_GPL(ov8856_led);
+
 void ov8856_clk(int on)
 {
 	union acpi_object *obj;
