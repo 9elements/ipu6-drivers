@@ -3,5 +3,5 @@
 
 obj-$(CONFIG_VIDEO_HM11B1) += hm11b1.o
 obj-$(CONFIG_VIDEO_OV01A1S) += ov01a1s.o
-obj-$(CONFIG_VIDEO_OV8856) += ov8856.o
+obj-$(CONFIG_VIDEO_OV8856) += ov8856.o ov8856_ctrl_logic.o
 obj-$(CONFIG_POWER_CTRL_LOGIC) += power_ctrl_logic.o
