@@ -14,6 +14,8 @@
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
 
+#include "ov8856_ctrl_logic.h"
+
 #define OV8856_REG_VALUE_08BIT		1
 #define OV8856_REG_VALUE_16BIT		2
 #define OV8856_REG_VALUE_24BIT		3
@@ -1772,53 +1774,61 @@ static int ov8856_set_stream(struct v4l2_subdev *sd, int enable)
 
 static int __ov8856_power_on(struct ov8856 *ov8856)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
-	int ret;
+//	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
+//	int ret;
 
-	if (is_acpi_node(dev_fwnode(&client->dev)))
-		return 0;
+	//if (is_acpi_node(dev_fwnode(&client->dev)))
+	//	return 0;
 
-	ret = clk_prepare_enable(ov8856->xvclk);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to enable xvclk\n");
-		return ret;
-	}
+	//ret = clk_prepare_enable(ov8856->xvclk);
+	//if (ret < 0) {
+	//	dev_err(&client->dev, "failed to enable xvclk\n");
+	//	return ret;
+	//}
+	ov8856_clk(1);
 
-	if (ov8856->reset_gpio) {
-		gpiod_set_value_cansleep(ov8856->reset_gpio, 1);
-		usleep_range(1000, 2000);
-	}
+	//if (ov8856->reset_gpio) {
+	//	gpiod_set_value_cansleep(ov8856->reset_gpio, 1);
+	//	usleep_range(1000, 2000);
+	//}
+	ov8856_reset(1);
+	usleep_range(1000, 2000);
 
-	ret = regulator_bulk_enable(ARRAY_SIZE(ov8856_supply_names),
-				    ov8856->supplies);
-	if (ret < 0) {
-		dev_err(&client->dev, "failed to enable regulators\n");
-		goto disable_clk;
-	}
+	//ret = regulator_bulk_enable(ARRAY_SIZE(ov8856_supply_names),
+	//			    ov8856->supplies);
+	//if (ret < 0) {
+	//	dev_err(&client->dev, "failed to enable regulators\n");
+	//	goto disable_clk;
+	//}
+	ov8856_power(1);
 
-	gpiod_set_value_cansleep(ov8856->reset_gpio, 0);
+	//gpiod_set_value_cansleep(ov8856->reset_gpio, 0);
+	ov8856_reset(0);
 	usleep_range(1500, 1800);
 
 	return 0;
 
-disable_clk:
-	gpiod_set_value_cansleep(ov8856->reset_gpio, 1);
-	clk_disable_unprepare(ov8856->xvclk);
-
-	return ret;
+//disable_clk:
+//	gpiod_set_value_cansleep(ov8856->reset_gpio, 1);
+//	clk_disable_unprepare(ov8856->xvclk);
+//
+//	return ret;
 }
 
 static void __ov8856_power_off(struct ov8856 *ov8856)
 {
-	struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
+	//struct i2c_client *client = v4l2_get_subdevdata(&ov8856->sd);
 
-	if (is_acpi_node(dev_fwnode(&client->dev)))
-		return;
+	//if (is_acpi_node(dev_fwnode(&client->dev)))
+	//	return;
 
-	gpiod_set_value_cansleep(ov8856->reset_gpio, 1);
-	regulator_bulk_disable(ARRAY_SIZE(ov8856_supply_names),
-			       ov8856->supplies);
-	clk_disable_unprepare(ov8856->xvclk);
+	//gpiod_set_value_cansleep(ov8856->reset_gpio, 1);
+	ov8856_reset(1);
+	//regulator_bulk_disable(ARRAY_SIZE(ov8856_supply_names),
+	//		       ov8856->supplies);
+	ov8856_power(0);
+	//clk_disable_unprepare(ov8856->xvclk);
+	ov8856_clk(0);
 }
 
 static int __maybe_unused ov8856_suspend(struct device *dev)
