@@ -41,4 +41,5 @@ struct ov8856_ctrl_logic {
 void ov8856_power(int on);
 void ov8856_reset(int on);
 void ov8856_clk(int on);
+void ov8856_led(int on);
 #endif

@@ -1725,6 +1725,8 @@ static int ov8856_start_streaming(struct ov8856 *ov8856)
 		return ret;
 	}
 
+	ov8856_led(1);
+
 	return 0;
 }
 
@@ -1735,6 +1737,8 @@ static void ov8856_stop_streaming(struct ov8856 *ov8856)
 	if (ov8856_write_reg(ov8856, OV8856_REG_MODE_SELECT,
 			     OV8856_REG_VALUE_08BIT, OV8856_MODE_STANDBY))
 		dev_err(&client->dev, "failed to set stream");
+
+	ov8856_led(0);
 }
 
 static int ov8856_set_stream(struct v4l2_subdev *sd, int enable)
